@@ -8,6 +8,24 @@
  * Define global variables here. For example,
  * cl_platform_id platform;
  */
+cl_platform_id platform;
+cl_device_id device;
+cl_context context;
+cl_command_queue queue;
+cl_program program;
+cl_kernel kernel;
+cl_int err;
+
+// feature maps buffer
+cl_mem bfm0, bfm1, bfm2, bfm3, boutput;
+
+// weight buffer
+cl_mem btconv1_w, btconv2_w, btconv3_w, btconv4_w;
+
+// bias buffer
+cl_mem btconv1_b, btconv2_b, btconv3_b, btconv4_b;
+
+
 #define CHECK_ERROR(err) \
     if (err != CL_SUCCESS) { \
         printf("[%s:%d] OpenCL error %d\n", __FILE__, __LINE__, err); \
@@ -142,14 +160,6 @@ void facegen_init() {
      * Initialize OpenCL objects as global variables. For example,
      * clGetPlatformIDs(1, &platform, NULL);
      */
-    cl_platform_id platform;
-    cl_device_id device;
-    cl_context context;
-    cl_command_queue queue;
-    cl_program program;
-    cl_kernel kernel;
-    cl_int err;
-
     size_t source_size;
     char *source_code;
     int loop = 0;
@@ -191,6 +201,37 @@ void facegen_init() {
     //create kernel
     kernel = clCreateKernel(program, "mat_mul", &err);
 
+    CHECK_ERROR(err);
+    //create feature maps buffer
+    bfm0 = clCreateBuffer(context, CL_MEM_READ_WRITE, sizeof(float) * 4 * 4 * 512, NULL, &err);
+    CHECK_ERROR(err);
+    bfm1 = clCreateBuffer(context, CL_MEM_READ_WRITE, sizeof(float) * 8 * 8 * 256, NULL, &err);
+    CHECK_ERROR(err);
+    bfm2 = clCreateBuffer(context, CL_MEM_READ_WRITE, sizeof(float) * 16 * 16 * 128, NULL, &err);
+    CHECK_ERROR(err);
+    bfm3 = clCreateBuffer(context, CL_MEM_READ_WRITE, sizeof(float) * 32 * 32 * 64, NULL, &err);
+    CHECK_ERROR(err);
+    boutput = clCreateBuffer(context, CL_MEM_READ_WRITE, sizeof(float) * 64 * 64 * 3, NULL, &err);
+    CHECK_ERROR(err);
+
+    //create weight buffer
+    btconv1_w = clCreateBuffer(context, CL_MEM_READ_WRITE, sizeof(float) * 5 * 5 * 256 * 512, NULL, &err);
+    CHECK_ERROR(err);
+    btconv2_w  = clCreateBuffer(context, CL_MEM_READ_WRITE, sizeof(float) * 5 * 5 * 128 * 256, NULL, &err);
+    CHECK_ERROR(err);
+    btconv3_w  = clCreateBuffer(context, CL_MEM_READ_WRITE, sizeof(float) * 5 * 5 * 64 * 128, NULL, &err);
+    CHECK_ERROR(err);
+    btconv4_w  = clCreateBuffer(context, CL_MEM_READ_WRITE, sizeof(float) * 5 * 5 * 3 * 64, NULL, &err);
+    CHECK_ERROR(err);
+
+    //create bias buffer
+    btconv1_b = clCreateBuffer(context, CL_MEM_READ_WRITE, sizeof(float) * 256, NULL, &err);
+    CHECK_ERROR(err);
+    btconv2_b  = clCreateBuffer(context, CL_MEM_READ_WRITE, sizeof(float) * 128, NULL, &err);
+    CHECK_ERROR(err);
+    btconv3_b  = clCreateBuffer(context, CL_MEM_READ_WRITE, sizeof(float) * 64, NULL, &err);
+    CHECK_ERROR(err);
+    btconv4_b  = clCreateBuffer(context, CL_MEM_READ_WRITE, sizeof(float) * 3, NULL, &err);
     CHECK_ERROR(err);
 
 }
@@ -250,7 +291,7 @@ void facegen(int num_to_gen, float *network, float *inputs, float *outputs) {
         tconv(fm3, output, tconv4_w, tconv4_b, 32, 32, 64, 3);
         tanh_layer(output, 64 * 64 * 3);
     }
-    
+
     // free resources
     free(fm0);
     free(fm1);
