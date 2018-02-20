@@ -271,6 +271,13 @@ void facegen(int num_to_gen, float *network, float *inputs, float *outputs) {
     float *fm2 = (float*)malloc(16 * 16 * 128 * sizeof(float));
     float *fm3 = (float*)malloc(32 * 32 * 64 * sizeof(float));
 
+    //TODO : create kernels and add kernel arguments
+    //cl_kernel tconv
+    //kernel = clCreateKernel(program, "tconv_k", &err);
+    //CHECK_ERROR(err);
+
+    //TODO : Change tconv functions
+
     // run network for each face
     for (int n = 0; n < num_to_gen; ++n) {
         float *input = inputs + n * 100;
