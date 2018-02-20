@@ -299,5 +299,9 @@ void facegen(int num_to_gen, float *network, float *inputs, float *outputs) {
     free(fm1);
     free(fm2);
     free(fm3);
+    clReleaseContext(context);
+    clReleaseCommandQueue(queue);
+    clReleaseProgram(program);
+    clReleaseKernel(kernel);
 
 }
