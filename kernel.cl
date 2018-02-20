@@ -1,4 +1,4 @@
-__kernel void tconv(__global float* in, __global float* out, __global float* weight __global float* bias, int H_IN, int W_IN, int C, int K)
+__kernel void tconv_k(__global float* in, __global float* out, __global float* weight __global float* bias, int H_IN, int W_IN, int C, int K)
 {
         int w_out = get_global_id(2);
         int h_out = get_global_id(1);

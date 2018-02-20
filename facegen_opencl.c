@@ -197,11 +197,6 @@ void facegen_init() {
         free(log);
     }
 
-    //TODO add kernel function
-    //create kernel
-    kernel = clCreateKernel(program, "mat_mul", &err);
-
-    CHECK_ERROR(err);
     //create feature maps buffer
     bfm0 = clCreateBuffer(context, CL_MEM_READ_WRITE, sizeof(float) * 4 * 4 * 512, NULL, &err);
     CHECK_ERROR(err);
