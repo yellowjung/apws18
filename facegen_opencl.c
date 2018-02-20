@@ -250,7 +250,7 @@ void facegen(int num_to_gen, float *network, float *inputs, float *outputs) {
         tconv(fm3, output, tconv4_w, tconv4_b, 32, 32, 64, 3);
         tanh_layer(output, 64 * 64 * 3);
     }
-    //
+    
     // free resources
     free(fm0);
     free(fm1);
