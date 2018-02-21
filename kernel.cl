@@ -39,13 +39,13 @@ __kernel void tconv_k(__global float* in, __global float* out, __global float* w
     out[(h_out * W_OUT + w_out) * K + k] = sum;
 }
 
-__kernel void batch_norm_k(__global float* inout, __global float* beta, __global float* mean, __global float* var, int HW, int C)
+__kernel void batch_norm_k(__global float* inout, __global float* beta, __global float* gamma, __global float* mean, __global float* var, int HW, int C)
 {
     int i = get_global_id(0);
     int c = i % C;
     float scaled_gamma;
 
-    scaled_gamma = gamma[c] / sqrtf(var[c] + 1e-5);
+    scaled_gamma = gamma[c] / sqrt(var[c] + 1e-5);
     inout[i] = scaled_gamma * inout[i] + (beta[c] - scaled_gamma * mean[c]);
 }
 
@@ -53,14 +53,14 @@ __kernel void relu_k(__global float* inout, int HWC)
 {
     int i = get_global_id(0);
 
-    inout[i] = fmaxf(inout[i], 0);
+    inout[i] = fmax(inout[i], 0);
 }
 
 __kernel void tanh_layer_k(__global float* inout, int HWC)
 {
     int i = get_global_id(0);
 
-    inout[i] = tanhf(inout[i]);
+    inout[i] = tanh(inout[i]);
 }
 
 __kernel void proj_k(__global float* in, __global float* out, __global float* weight, __global float* bias, int C, int K)
@@ -71,11 +71,11 @@ __kernel void proj_k(__global float* in, __global float* out, __global float* we
     
     for(c = 0; c < C; ++c)
     {
-        sum += in[c] * weight[c * K + k];
+        sum += in[c] * weight[c * K + i];
     }
 
-    sum += bias[k];
+    sum += bias[i];
 
-    out[k] = sum;
+    out[i] = sum;
 }
 
