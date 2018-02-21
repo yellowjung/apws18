@@ -115,40 +115,40 @@ static void relu(float *inout, int HWC) {
  * weight : (5, 5, K, C)
  * bias : (K)
  */
-static void tconv(float *in, float *out, float *weight, float *bias, int H_IN, int W_IN, int C, int K) {
-    int H_OUT = H_IN * 2, W_OUT = W_IN * 2;
-    for (int h_out = 0; h_out < H_OUT; ++h_out) {
-        for (int w_out = 0; w_out < W_OUT; ++w_out) {
-            for (int k = 0; k < K; ++k) {
-                float ss = 0;
-                for (int r = 0; r < 5; ++r) {
-                    for (int s = 0; s < 5; ++s) {
-                        // top and left side has padding 3, bottom and right side has padding 2
-                        // so subtract 3
-                        int h_in = h_out - 3 + r;
-                        int w_in = w_out - 3 + s;
-                        // stride is 2, so check coordinates fall into input element or empty space
-                        if (h_in % 2 == 0 && w_in % 2 == 0) {
-                            h_in /= 2;
-                            w_in /= 2;
-                            // boundary check
-                            if (0 <= h_in && h_in < H_IN && 0 <= w_in && w_in < W_IN) {
-                                for (int c = 0; c < C; ++c) {
-                                    // filter is stored in reverse; so use [4 - r][4 - s] instead of [r][s]
-                                    // ss += in[h_in][w_in][c] * weight[4 - r][4 - s][k][c];
-                                    ss += in[(h_in * W_IN + w_in) * C + c] * weight[(((4 - r) * 5 + (4 - s)) * K + k) * C + c];
-                                }
-                            }
-                        }
-                    }
-                }
-                ss += bias[k];
-                // out[h_out][w_out][k] = ss;
-                out[(h_out * W_OUT + w_out) * K + k] = ss;
-            }
-        }
-    }
-}
+//static void tconv(float *in, float *out, float *weight, float *bias, int H_IN, int W_IN, int C, int K) {
+//    int H_OUT = H_IN * 2, W_OUT = W_IN * 2;
+//    for (int h_out = 0; h_out < H_OUT; ++h_out) {
+//        for (int w_out = 0; w_out < W_OUT; ++w_out) {
+//            for (int k = 0; k < K; ++k) {
+//                float ss = 0;
+//                for (int r = 0; r < 5; ++r) {
+//                    for (int s = 0; s < 5; ++s) {
+//                        // top and left side has padding 3, bottom and right side has padding 2
+//                        // so subtract 3
+//                        int h_in = h_out - 3 + r;
+//                        int w_in = w_out - 3 + s;
+//                        // stride is 2, so check coordinates fall into input element or empty space
+//                        if (h_in % 2 == 0 && w_in % 2 == 0) {
+//                            h_in /= 2;
+//                            w_in /= 2;
+//                            // boundary check
+//                            if (0 <= h_in && h_in < H_IN && 0 <= w_in && w_in < W_IN) {
+//                                for (int c = 0; c < C; ++c) {
+//                                    // filter is stored in reverse; so use [4 - r][4 - s] instead of [r][s]
+//                                    // ss += in[h_in][w_in][c] * weight[4 - r][4 - s][k][c];
+//                                    ss += in[(h_in * W_IN + w_in) * C + c] * weight[(((4 - r) * 5 + (4 - s)) * K + k) * C + c];
+//                                }
+//                            }
+//                        }
+//                    }
+//                }
+//                ss += bias[k];
+//                // out[h_out][w_out][k] = ss;
+//                out[(h_out * W_OUT + w_out) * K + k] = ss;
+//            }
+//        }
+//    }
+//}
 
 /*
  * tanh (in-place)
@@ -313,24 +313,42 @@ void facegen(int num_to_gen, float *network, float *inputs, float *outputs) {
     CHECK_ERROR(err);
 
 
-    //TODO : create kernels and add kernel arguments
-    // cl_kernel tconv
+    // create kernel tconv
     kernel = clCreateKernel(program, "tconv_k", &err);
     CHECK_ERROR(err);
 
-    //TODO : Change tconv functions
+    //time result array
+    double result_time[14], time_start, time_end;
+    int loop;
+    for(loop = 0; loop < 14; loop++){
+        result_time[loop] = 0;
+    }
 
     // run network for each face
     for (int n = 0; n < num_to_gen; ++n) {
         float *input = inputs + n * 100;
         float *output = outputs + n * 64 * 64 * 3;
+
+        //Input image
+        time_start = get_time();
         proj(input, fm0, proj_w, proj_b, 100, 8192);
+        time_end = get_time();
+        result_time[0] += time_end - time_start;
         // implicit layout change here; (8192,) -> (4, 4, 512)
+
+        time_start = get_time();
         batch_norm(fm0, bn0_beta, bn0_gamma, bn0_mean, bn0_var, 4 * 4, 512);
+        time_end  = get_time();
+        result_time[1] += time_end - time_start;
+
+        time_start = get_time();
         relu(fm0, 4 * 4 * 512);
         //tconv(fm0, fm1, tconv1_w, tconv1_b, 4, 4, 512, 256);
+        time_end = get_time();
+        result_time[2] += time_end - time_start;
 
         //feature map 0
+        time_start = get_time();
         w_in = 4; h_in = 4; C = 512; K = 256;
         err = clEnqueueWriteBuffer(queue, bfm0, CL_FALSE, 0, sizeof(float) * w_in * h_in * C, fm0, 0, NULL, NULL);
         CHECK_ERROR(err);
@@ -342,11 +360,11 @@ void facegen(int num_to_gen, float *network, float *inputs, float *outputs) {
         CHECK_ERROR(err);
         err = clSetKernelArg(kernel, 3, sizeof(cl_mem), &btconv1_b);
         CHECK_ERROR(err);
-        err = clSetKernelArg(kernel, 4, sizeof(cl_int), &h_in);   
+        err = clSetKernelArg(kernel, 4, sizeof(cl_int), &h_in);
         CHECK_ERROR(err);
         err = clSetKernelArg(kernel, 5, sizeof(cl_int), &w_in);
         CHECK_ERROR(err);
-        err = clSetKernelArg(kernel, 6, sizeof(cl_int), &C);   
+        err = clSetKernelArg(kernel, 6, sizeof(cl_int), &C);
         CHECK_ERROR(err);
         err = clSetKernelArg(kernel, 7, sizeof(cl_int), &K);
         CHECK_ERROR(err);
@@ -367,12 +385,22 @@ void facegen(int num_to_gen, float *network, float *inputs, float *outputs) {
 
         err = clEnqueueReadBuffer(queue, bfm1, CL_TRUE, 0, sizeof(float) * 4 * w_in * h_in * K, fm1, 0, NULL, NULL);
         CHECK_ERROR(err);
+        time_end = get_time();
+        result_time[3] += time_end - time_start;
 
+        time_start = get_time();
         batch_norm(fm1, bn1_beta, bn1_gamma, bn1_mean, bn1_var, 8 * 8, 256);
+        time_end = get_time();
+        result_time[4] += time_end - time_start;
+
+        time_start = get_time();
         relu(fm1, 8 * 8 * 256);
         //tconv(fm1, fm2, tconv2_w, tconv2_b, 8, 8, 256, 128);
+        time_end = get_time();
+        result_time[5] += time_end - time_start;
 
         //feature map 1
+        time_start = get_time();
         w_in *= 2; h_in *= 2; C /= 2; K /= 2;
         err = clEnqueueWriteBuffer(queue, bfm1, CL_FALSE, 0, sizeof(float) * w_in * h_in * C, fm1, 0, NULL, NULL);
         CHECK_ERROR(err);
@@ -385,11 +413,11 @@ void facegen(int num_to_gen, float *network, float *inputs, float *outputs) {
         CHECK_ERROR(err);
         err = clSetKernelArg(kernel, 3, sizeof(cl_mem), &btconv2_b);
         CHECK_ERROR(err);
-        err = clSetKernelArg(kernel, 4, sizeof(cl_int), &h_in);   
+        err = clSetKernelArg(kernel, 4, sizeof(cl_int), &h_in);
         CHECK_ERROR(err);
         err = clSetKernelArg(kernel, 5, sizeof(cl_int), &w_in);
         CHECK_ERROR(err);
-        err = clSetKernelArg(kernel, 6, sizeof(cl_int), &C);   
+        err = clSetKernelArg(kernel, 6, sizeof(cl_int), &C);
         CHECK_ERROR(err);
         err = clSetKernelArg(kernel, 7, sizeof(cl_int), &K);
         CHECK_ERROR(err);
@@ -410,11 +438,23 @@ void facegen(int num_to_gen, float *network, float *inputs, float *outputs) {
 
         err = clEnqueueReadBuffer(queue, bfm2, CL_TRUE, 0, sizeof(float) * 4 * w_in * h_in * K, fm2, 0, NULL, NULL);
         CHECK_ERROR(err);
+        time_end = get_time();
+        result_time[6] += time_end - time_start;
+
+        time_start = get_time();
         batch_norm(fm2, bn2_beta, bn2_gamma, bn2_mean, bn2_var, 16 * 16, 128);
+        time_end = get_time();
+        result_time[7] += time_end - time_start;
+
+        time_start = get_time();
         relu(fm2, 16 * 16 * 128);
+        time_end = get_time();
+        result_time[8] += time_end - time_start;
         //tconv(fm2, fm3, tconv3_w, tconv3_b, 16, 16, 128, 64);
 
+
         //feature map 2
+        time_start = get_time();
         w_in *= 2; h_in *= 2; C /= 2; K /= 2;
         err = clEnqueueWriteBuffer(queue, bfm2, CL_FALSE, 0, sizeof(float) * w_in * h_in * C, fm2, 0, NULL, NULL);
         CHECK_ERROR(err);
@@ -453,11 +493,23 @@ void facegen(int num_to_gen, float *network, float *inputs, float *outputs) {
 
         err = clEnqueueReadBuffer(queue, bfm3, CL_TRUE, 0, sizeof(float) * 4 * w_in * h_in * K, fm3, 0, NULL, NULL);
         CHECK_ERROR(err);
+        time_end = get_time();
+        result_time[9] += time_end - time_start;
+
+        time_start = get_time();
         batch_norm(fm3, bn3_beta, bn3_gamma, bn3_mean, bn3_var, 32 * 32, 64);
+        time_end = get_time();
+        result_time[10] += time_end - time_start;
+
+        time_start = get_time();
         relu(fm3, 32 * 32 * 64);
+
+        time_end = get_time();
+        result_time[11] += time_end - time_start;
         //tconv(fm3, output, tconv4_w, tconv4_b, 32, 32, 64, 3);
 
         //feature map 3
+        time_start = get_time();
         w_in *= 2; h_in *= 2; C /= 2; K = 3;
         err = clEnqueueWriteBuffer(queue, bfm3, CL_FALSE, 0, sizeof(float) * w_in * h_in * C, fm3, 0, NULL, NULL);
         CHECK_ERROR(err);
@@ -495,9 +547,22 @@ void facegen(int num_to_gen, float *network, float *inputs, float *outputs) {
 
         err = clEnqueueReadBuffer(queue, boutput, CL_TRUE, 0, sizeof(float) * 4 * w_in * h_in * K, output, 0, NULL, NULL);
         CHECK_ERROR(err);
+        time_end = get_time();
+        result_time[12] += time_end - time_start;
+
+        time_start = get_time();
         tanh_layer(output, 64 * 64 * 3);
+        time_end = get_time();
+        result_time[13] += time_end - time_start;
     }
 
+    for(loop = 0; loop < 5; loop++){
+        printf("\nnumber%d : %0.9f \n",loop, result_time[loop]);
+        printf("\nnumber%d : %0.9f \n",loop, result_time[loop+1]);
+        if(loop != 4){
+            printf("\nnumber%d : %0.9f \n", loop, result_time[loop+2]);
+        }
+    }
     // free resources
     free(fm0);
     free(fm1);
