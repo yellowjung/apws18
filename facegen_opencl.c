@@ -27,6 +27,17 @@ cl_mem btconv1_w, btconv2_w, btconv3_w, btconv4_w;
 // bias buffer
 cl_mem btconv1_b, btconv2_b, btconv3_b, btconv4_b;
 
+//beta buffer
+cl_mem b_beta0, b_beta1, b_beta2, b_beta3;
+
+//gamma buffer
+cl_mem b_gamma0, b_gamma1, b_gamma2, b_gamma3;
+
+//mean buffer
+cl_mem b_mean0, b_mean1, b_mean2, b_mean3;
+
+//var buffer
+cl_mem b_var0, b_var1, b_var2, b_var3;
 
 #define CHECK_ERROR(err) \
     if (err != CL_SUCCESS) { \
@@ -241,6 +252,46 @@ void facegen_init() {
     btconv4_b  = clCreateBuffer(context, CL_MEM_READ_WRITE, sizeof(float) * 3, NULL, &err);
     CHECK_ERROR(err);
 
+    //create beta
+    b_beta0 = clCreateBuffer(context, CL_MEM_READ_WRITE, sizeof(float) * 512, NULL, &err);
+    CHECK_ERROR(err);
+    b_beta1 = clCreateBuffer(context, CL_MEM_READ_WRITE, sizeof(float) * 256, NULL, &err);
+    CHECK_ERROR(err);
+    b_beta2 = clCreateBuffer(context, CL_MEM_READ_WRITE, sizeof(float) * 128, NULL, &err);
+    CHECK_ERROR(err);
+    b_beta3 = clCreateBuffer(context, CL_MEM_READ_WRITE, sizeof(float) * 64, NULL, &err);
+    CHECK_ERROR(err);
+
+    //create gamma
+    b_gamma0 = clCreateBuffer(context, CL_MEM_READ_WRITE, sizeof(float) * 512, NULL, &err);
+    CHECK_ERROR(err);
+    b_gamma1 = clCreateBuffer(context, CL_MEM_READ_WRITE, sizeof(float) * 256, NULL, &err);
+    CHECK_ERROR(err);
+    b_gamma2 = clCreateBuffer(context, CL_MEM_READ_WRITE, sizeof(float) * 128, NULL, &err);
+    CHECK_ERROR(err);
+    b_gamma3 = clCreateBuffer(context, CL_MEM_READ_WRITE, sizeof(float) * 64, NULL, &err);
+    CHECK_ERROR(err);
+
+    //create mean
+    b_mean0 = clCreateBuffer(context, CL_MEM_READ_WRITE, sizeof(float) * 512, NULL, &err);
+    CHECK_ERROR(err);
+    b_mean1 = clCreateBuffer(context, CL_MEM_READ_WRITE, sizeof(float) * 256, NULL, &err);
+    CHECK_ERROR(err);
+    b_mean2 = clCreateBuffer(context, CL_MEM_READ_WRITE, sizeof(float) * 128, NULL, &err);
+    CHECK_ERROR(err);
+    b_mean3 = clCreateBuffer(context, CL_MEM_READ_WRITE, sizeof(float) * 64, NULL, &err);
+    CHECK_ERROR(err);
+
+    //create var
+    b_var0 = clCreateBuffer(context, CL_MEM_READ_WRITE, sizeof(float) * 512, NULL, &err);
+    CHECK_ERROR(err);
+    b_var1 = clCreateBuffer(context, CL_MEM_READ_WRITE, sizeof(float) * 256, NULL, &err);
+    CHECK_ERROR(err);
+    b_var2 = clCreateBuffer(context, CL_MEM_READ_WRITE, sizeof(float) * 128, NULL, &err);
+    CHECK_ERROR(err);
+    b_var3 = clCreateBuffer(context, CL_MEM_READ_WRITE, sizeof(float) * 64, NULL, &err);
+    CHECK_ERROR(err);
+
 }
 
 void facegen(int num_to_gen, float *network, float *inputs, float *outputs) {
@@ -290,12 +341,28 @@ void facegen(int num_to_gen, float *network, float *inputs, float *outputs) {
     CHECK_ERROR(err);
     err = clEnqueueWriteBuffer(queue, btconv1_b, CL_TRUE, 0, sizeof(float) * K, tconv1_b, 0, NULL, NULL);
     CHECK_ERROR(err);
+    err = clEnqueueWriteBuffer(queue, b_beta0, CL_TRUE, 0, sizeof(float) * C, bn0_beta, 0, NULL, NULL);
+    CHECK_ERROR(err);
+    err = clEnqueueWriteBuffer(queue, b_gamma0, CL_TRUE, 0, sizeof(float) * C, bn0_gamma, 0, NULL, NULL);
+    CHECK_ERROR(err);
+    err = clEnqueueWriteBuffer(queue, b_mean0, CL_TRUE, 0, sizeof(float) * C, bn0_mean, 0, NULL, NULL);
+    CHECK_ERROR(err);
+    err = clEnqueueWriteBuffer(queue, b_var0, CL_TRUE, 0, sizeof(float) * C, bn0_var, 0, NULL, NULL);
+    CHECK_ERROR(err);
 
     //feature map 1
     w_in *= 2; h_in *= 2; C /= 2; K /= 2;
     err = clEnqueueWriteBuffer(queue, btconv2_w, CL_FALSE, 0, sizeof(float) * 5 * 5 * C * K, tconv2_w, 0, NULL, NULL);
     CHECK_ERROR(err);
     err = clEnqueueWriteBuffer(queue, btconv2_b, CL_TRUE, 0, sizeof(float) * K, tconv2_b, 0, NULL, NULL);
+    CHECK_ERROR(err);
+    err = clEnqueueWriteBuffer(queue, b_beta1, CL_TRUE, 0, sizeof(float) * C, bn1_beta, 0, NULL, NULL);
+    CHECK_ERROR(err);
+err = clEnqueueWriteBuffer(queue, b_gamma1, CL_TRUE, 0, sizeof(float) * C, bn1_gamma, 0, NULL, NULL);
+    CHECK_ERROR(err);
+    err = clEnqueueWriteBuffer(queue, b_mean1, CL_TRUE, 0, sizeof(float) * C, bn1_mean, 0, NULL, NULL);
+    CHECK_ERROR(err);
+    err = clEnqueueWriteBuffer(queue, b_var1, CL_TRUE, 0, sizeof(float) * C, bn1_var, 0, NULL, NULL);
     CHECK_ERROR(err);
 
     //feature map 2
@@ -304,12 +371,28 @@ void facegen(int num_to_gen, float *network, float *inputs, float *outputs) {
     CHECK_ERROR(err);
     err = clEnqueueWriteBuffer(queue, btconv3_b, CL_TRUE, 0, sizeof(float) * K, tconv3_b, 0, NULL, NULL);
     CHECK_ERROR(err);
+    err = clEnqueueWriteBuffer(queue, b_beta2, CL_TRUE, 0, sizeof(float) * C, bn2_beta, 0, NULL, NULL);
+    CHECK_ERROR(err);
+err = clEnqueueWriteBuffer(queue, b_gamma2, CL_TRUE, 0, sizeof(float) * C, bn2_gamma, 0, NULL, NULL);
+    CHECK_ERROR(err);
+    err = clEnqueueWriteBuffer(queue, b_mean2, CL_TRUE, 0, sizeof(float) * C, bn2_mean, 0, NULL, NULL);
+    CHECK_ERROR(err);
+    err = clEnqueueWriteBuffer(queue, b_var2, CL_TRUE, 0, sizeof(float) * C, bn2_var, 0, NULL, NULL);
+    CHECK_ERROR(err);
 
     //feature map 3
     w_in *= 2; h_in *= 2; C /= 2; K = 3;
     err = clEnqueueWriteBuffer(queue, btconv4_w, CL_FALSE, 0, sizeof(float) * 5 * 5 * C * K, tconv4_w, 0, NULL, NULL);
     CHECK_ERROR(err);
     err = clEnqueueWriteBuffer(queue, btconv4_b, CL_TRUE, 0, sizeof(float) * K, tconv4_b, 0, NULL, NULL);
+    CHECK_ERROR(err);
+    err = clEnqueueWriteBuffer(queue, b_beta3, CL_TRUE, 0, sizeof(float) * C, bn3_beta, 0, NULL, NULL);
+    CHECK_ERROR(err);
+err = clEnqueueWriteBuffer(queue, b_gamma3, CL_TRUE, 0, sizeof(float) * C, bn3_gamma, 0, NULL, NULL);
+    CHECK_ERROR(err);
+    err = clEnqueueWriteBuffer(queue, b_mean2, CL_TRUE, 0, sizeof(float) * C, bn3_mean, 0, NULL, NULL);
+    CHECK_ERROR(err);
+    err = clEnqueueWriteBuffer(queue, b_var2, CL_TRUE, 0, sizeof(float) * C, bn3_var, 0, NULL, NULL);
     CHECK_ERROR(err);
 
 
