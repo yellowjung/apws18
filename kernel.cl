@@ -1,4 +1,4 @@
-__kernel void tconv_k(__global float* in, __global float* out, __global float* weight __global float* bias, int H_IN, int W_IN, int C, int K)
+__kernel void tconv_k(__global float* in, __global float* out, __global float* weight, __global float* bias, int H_IN, int W_IN, int C, int K)
 {
         int w_out = get_global_id(2);
         int h_out = get_global_id(1);
@@ -13,7 +13,7 @@ __kernel void tconv_k(__global float* in, __global float* out, __global float* w
             {
                 // Top & left padding = 3, bottom & rigt padding = 2
                 h_in = h_out - 3 + r;
-                w_in = w_out - 3 + r;
+                w_in = w_out - 3 + s;
 
                 if(h_in % 2 == 0 && w_in % 2 == 0)
                 {
