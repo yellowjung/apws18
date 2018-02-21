@@ -330,7 +330,6 @@ void facegen(int num_to_gen, float *network, float *inputs, float *outputs) {
     float *fm1 = (float*)malloc(8 * 8 * 256 * sizeof(float));
     float *fm2 = (float*)malloc(16 * 16 * 128 * sizeof(float));
     float *fm3 = (float*)malloc(32 * 32 * 64 * sizeof(float));
-
     // Work_items and work_group
     size_t global_size[3], local_size[3];
     size_t bat_global_size[2], bat_local_size[2];
@@ -454,7 +453,7 @@ void facegen(int num_to_gen, float *network, float *inputs, float *outputs) {
                 NULL,
                 NULL);
 
-        err = clEnqueueReadBuffer(queue, bfm0, CL_TRUE, 0, sizeof(float) *  w_in * h_in * K, fm0, 0, NULL, NULL);
+        err = clEnqueueReadBuffer(queue, bfm0, CL_TRUE, 0, sizeof(float) *  w_in * h_in * C, fm0, 0, NULL, NULL);
         CHECK_ERROR(err);
 
 //        batch_norm(fm0, bn0_beta, bn0_gamma, bn0_mean, bn0_var, 4 * 4, 512);
