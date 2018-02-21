@@ -32,6 +32,12 @@ cl_mem btconv1_b, btconv2_b, btconv3_b, btconv4_b;
         exit(EXIT_FAILURE); \
     }
 
+double get_time() {
+  struct timeval tv;
+  gettimeofday(&tv, NULL);
+  return (double)tv.tv_sec + (double)1e-6 * tv.tv_usec;
+}
+
 char *get_source_code(const char *file_name, size_t *len) {
     char *source_code;
     size_t length;
@@ -288,6 +294,7 @@ void facegen(int num_to_gen, float *network, float *inputs, float *outputs) {
         batch_norm(fm0, bn0_beta, bn0_gamma, bn0_mean, bn0_var, 4 * 4, 512);
         relu(fm0, 4 * 4 * 512);
         //tconv(fm0, fm1, tconv1_w, tconv1_b, 4, 4, 512, 256);
+
 
         batch_norm(fm1, bn1_beta, bn1_gamma, bn1_mean, bn1_var, 8 * 8, 256);
         relu(fm1, 8 * 8 * 256);
