@@ -57,3 +57,5 @@ dkms.conf
 tags
 #Mac
 .DS_Store
+*.stderr
+*.stdout
