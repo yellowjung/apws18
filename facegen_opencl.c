@@ -194,7 +194,10 @@ void facegen_init() {
         log = (char *)malloc(log_size + 1);
         clGetProgramBuildInfo(program, device, CL_PROGRAM_BUILD_LOG, log_size, log, NULL);
         log[log_size] = '\0';
+        printf("Compile error:\n%s\n", log);
         free(log);
+
+        exit(0);
     }
 
     //create feature maps buffer
@@ -266,10 +269,13 @@ void facegen(int num_to_gen, float *network, float *inputs, float *outputs) {
     float *fm2 = (float*)malloc(16 * 16 * 128 * sizeof(float));
     float *fm3 = (float*)malloc(32 * 32 * 64 * sizeof(float));
 
+    // Work_items and work_group
+    size_t global_size[3], local_size[3];
+
     //TODO : create kernels and add kernel arguments
-    //cl_kernel tconv
-    //kernel = clCreateKernel(program, "tconv_k", &err);
-    //CHECK_ERROR(err);
+    cl_kernel tconv
+    kernel = clCreateKernel(program, "tconv_k", &err);
+    CHECK_ERROR(err);
 
     //TODO : Change tconv functions
 
@@ -281,7 +287,8 @@ void facegen(int num_to_gen, float *network, float *inputs, float *outputs) {
         // implicit layout change here; (8192,) -> (4, 4, 512)
         batch_norm(fm0, bn0_beta, bn0_gamma, bn0_mean, bn0_var, 4 * 4, 512);
         relu(fm0, 4 * 4 * 512);
-        tconv(fm0, fm1, tconv1_w, tconv1_b, 4, 4, 512, 256);
+        //tconv(fm0, fm1, tconv1_w, tconv1_b, 4, 4, 512, 256);
+
         batch_norm(fm1, bn1_beta, bn1_gamma, bn1_mean, bn1_var, 8 * 8, 256);
         relu(fm1, 8 * 8 * 256);
         tconv(fm1, fm2, tconv2_w, tconv2_b, 8, 8, 256, 128);
