@@ -1,0 +1,43 @@
+Reading 'network.bin'... done!
+Reading 'input1.txt'... done!
+Initializing...Compile error:
+<kernel>:1:87: error: expected ')'
+__kernel void tconv_k(__global float* in, __global float* out, __global float* weight __global float* bias, int H_IN, int W_IN, int C, int K)
+                                                                                      ^
+<kernel>:1:22: note: to match this '('
+__kernel void tconv_k(__global float* in, __global float* out, __global float* weight __global float* bias, int H_IN, int W_IN, int C, int K)
+                     ^
+<kernel>:7:21: error: use of undeclared identifier 'H_IN'
+        int H_OUT = H_IN * 2, W_OUT = W_IN * 2;
+                    ^
+<kernel>:7:39: error: use of undeclared identifier 'W_IN'
+        int H_OUT = H_IN * 2, W_OUT = W_IN * 2;
+                                      ^
+<kernel>:24:44: error: use of undeclared identifier 'H_IN'
+                    if(0 <= h_in && h_in < H_IN && 0 <= w_in && w_in < W_IN)
+                                           ^
+<kernel>:24:72: error: use of undeclared identifier 'W_IN'
+                    if(0 <= h_in && h_in < H_IN && 0 <= w_in && w_in < W_IN)
+                                                                       ^
+<kernel>:26:40: error: use of undeclared identifier 'C'
+                        for(c = 0; c < C; c++)
+                                       ^
+<kernel>:30:47: error: use of undeclared identifier 'W_IN'
+                            sum += in[(h_in * W_IN + w_in) * C + c] * weight[(((4 - r) * 5 + (4 - s)) * K + k) * C + c];
+                                              ^
+<kernel>:30:62: error: use of undeclared identifier 'C'
+                            sum += in[(h_in * W_IN + w_in) * C + c] * weight[(((4 - r) * 5 + (4 - s)) * K + k) * C + c];
+                                                             ^
+<kernel>:30:105: error: use of undeclared identifier 'K'
+                            sum += in[(h_in * W_IN + w_in) * C + c] * weight[(((4 - r) * 5 + (4 - s)) * K + k) * C + c];
+                                                                                                        ^
+<kernel>:30:114: error: use of undeclared identifier 'C'
+                            sum += in[(h_in * W_IN + w_in) * C + c] * weight[(((4 - r) * 5 + (4 - s)) * K + k) * C + c];
+                                                                                                                 ^
+<kernel>:37:16: error: use of undeclared identifier 'bias'
+        sum += bias[k];
+               ^
+<kernel>:39:39: error: use of undeclared identifier 'K'
+        out[(h_out * W_OUT + w_out) * K + k] = sum;
+                                      ^
+

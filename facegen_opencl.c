@@ -3,6 +3,8 @@
 #include <math.h>
 #include <stdlib.h>
 #include <stdio.h>
+#include <sys/time.h>
+#include <unistd.h>
 /*
  * TODO
  * Define global variables here. For example,
@@ -168,7 +170,6 @@ void facegen_init() {
      */
     size_t source_size;
     char *source_code;
-    int loop = 0;
     //get platform id
     err = clGetPlatformIDs(1, &platform, NULL);
     CHECK_ERROR(err);
@@ -278,8 +279,11 @@ void facegen(int num_to_gen, float *network, float *inputs, float *outputs) {
     // Work_items and work_group
     size_t global_size[3], local_size[3];
 
+    // Variables for kernelargs
+    int w_in, h_in, C, K;
+
     //TODO : create kernels and add kernel arguments
-    cl_kernel tconv
+    // cl_kernel tconv
     kernel = clCreateKernel(program, "tconv_k", &err);
     CHECK_ERROR(err);
 
@@ -294,7 +298,43 @@ void facegen(int num_to_gen, float *network, float *inputs, float *outputs) {
         batch_norm(fm0, bn0_beta, bn0_gamma, bn0_mean, bn0_var, 4 * 4, 512);
         relu(fm0, 4 * 4 * 512);
         //tconv(fm0, fm1, tconv1_w, tconv1_b, 4, 4, 512, 256);
+        w_in = 4; h_in = 4; C = 512; K = 256;
+        err = clEnqueueWriteBuffer(queue, bfm0, CL_TRUE, 0, sizeof(float) * w_in * h_in * C, fm0, 0, NULL, NULL);
+        CHECK_ERROR(err);
 
+        err = clSetKernelArg(kernel, 0, sizeof(cl_mem), &bfm0);
+        CHECK_ERROR(err);
+        err = clSetKernelArg(kernel, 1, sizeof(cl_mem), &bfm1);
+        CHECK_ERROR(err);
+        err = clSetKernelArg(kernel, 2, sizeof(cl_mem), &btconv1_w);
+        CHECK_ERROR(err);
+        err = clSetKernelArg(kernel, 3, sizeof(cl_mem), &btconv1_b);
+        CHECK_ERROR(err);
+        err = clSetKernelArg(kernel, 4, sizeof(cl_int), &h_in);   
+        CHECK_ERROR(err);
+        err = clSetKernelArg(kernel, 5, sizeof(cl_int), &w_in);
+        CHECK_ERROR(err);
+        err = clSetKernelArg(kernel, 6, sizeof(cl_int), &C);   
+        CHECK_ERROR(err);
+        err = clSetKernelArg(kernel, 7, sizeof(cl_int), &K);
+        CHECK_ERROR(err);
+
+        global_size[2] = 8; global_size[1] = 8; global_size[0] = 256;
+        local_size[2] = 4; local_size[1] = 4; local_size[0] = 16;
+
+        clEnqueueNDRangeKernel(
+                        queue,
+                        kernel,
+                        3,
+                        NULL,
+                        global_size,
+                        local_size,
+                        0,
+                        NULL,
+                        NULL);
+
+        err = clEnqueueReadBuffer(queue, bfm1, CL_TRUE, 0, sizeof(float) * 8 * 8 * 256, fm1, 0, NULL, NULL);
+        CHECK_ERROR(err);
 
         batch_norm(fm1, bn1_beta, bn1_gamma, bn1_mean, bn1_var, 8 * 8, 256);
         relu(fm1, 8 * 8 * 256);
