@@ -1,0 +1,7 @@
+Reading 'network.bin'... done!
+Reading 'input2.txt'... done!
+Initializing... done!
+Calculating... done!
+Elapsed time : 15.446261 sec
+Writing 'output2.txt'... done!
+Writing 'output2.bmp'... done!
