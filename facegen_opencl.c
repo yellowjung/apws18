@@ -299,7 +299,11 @@ void facegen(int num_to_gen, float *network, float *inputs, float *outputs) {
         relu(fm0, 4 * 4 * 512);
         //tconv(fm0, fm1, tconv1_w, tconv1_b, 4, 4, 512, 256);
         w_in = 4; h_in = 4; C = 512; K = 256;
-        err = clEnqueueWriteBuffer(queue, bfm0, CL_TRUE, 0, sizeof(float) * w_in * h_in * C, fm0, 0, NULL, NULL);
+        err = clEnqueueWriteBuffer(queue, bfm0, CL_FALSE, 0, sizeof(float) * w_in * h_in * C, fm0, 0, NULL, NULL);
+        CHECK_ERROR(err);
+        err = clEnqueueWriteBuffer(queue, btconv1_w, CL_FALSE, 0, sizeof(float) * 5 * 5 * C * K, tconv1_w, 0, NULL, NULL);
+        CHECK_ERROR(err);
+        err = clEnqueueWriteBuffer(queue, btconv1_b, CL_TRUE, 0, sizeof(float) * K, tconv1_b, 0, NULL, NULL);
         CHECK_ERROR(err);
 
         err = clSetKernelArg(kernel, 0, sizeof(cl_mem), &bfm0);
@@ -319,8 +323,8 @@ void facegen(int num_to_gen, float *network, float *inputs, float *outputs) {
         err = clSetKernelArg(kernel, 7, sizeof(cl_int), &K);
         CHECK_ERROR(err);
 
-        global_size[2] = 8; global_size[1] = 8; global_size[0] = 256;
-        local_size[2] = 4; local_size[1] = 4; local_size[0] = 16;
+        global_size[2] = 256; global_size[1] = 8; global_size[0] = 8;
+        local_size[2] = 16; local_size[1] = 4; local_size[0] = 4;
 
         clEnqueueNDRangeKernel(
                         queue,

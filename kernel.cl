@@ -1,15 +1,15 @@
 __kernel void tconv_k(__global float* in, __global float* out, __global float* weight, __global float* bias, int H_IN, int W_IN, int C, int K)
 {
-        int w_out = get_global_id(2);
+        int w_out = get_global_id(0);
         int h_out = get_global_id(1);
-        int k = get_global_id(0);
+        int k = get_global_id(2);
         float sum = 0.0f;
         int H_OUT = H_IN * 2, W_OUT = W_IN * 2;
         int r, s, h_in, w_in, c;
 
-        for(r = 0; r < 5; r++)
+        for(r = 0; r < 5; ++r)
         {
-            for(s = 0; s < 5; s++)
+            for(s = 0; s < 5; ++s)
             {
                 // Top & left padding = 3, bottom & rigt padding = 2
                 h_in = h_out - 3 + r;
@@ -23,7 +23,7 @@ __kernel void tconv_k(__global float* in, __global float* out, __global float* w
                     // Boundary Check
                     if(0 <= h_in && h_in < H_IN && 0 <= w_in && w_in < W_IN)
                     {
-                        for(c = 0; c < C; c++)
+                        for(c = 0; c < C; ++c)
                         {
                             // Filter is stored in reverse. use [4 - r][4 - s]
                             // sum += in[h_in][w_in][c] * weight[4 - r][4 - s][k][c]
