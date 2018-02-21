@@ -323,7 +323,7 @@ void facegen(int num_to_gen, float *network, float *inputs, float *outputs) {
         err = clSetKernelArg(kernel, 7, sizeof(cl_int), &K);
         CHECK_ERROR(err);
 
-        global_size[2] = 256; global_size[1] = 8; global_size[0] = 8;
+        global_size[2] = K; global_size[1] = 2 * h_in; global_size[0] = 2 * w_in;
         local_size[2] = 16; local_size[1] = 4; local_size[0] = 4;
 
         clEnqueueNDRangeKernel(
@@ -337,15 +337,97 @@ void facegen(int num_to_gen, float *network, float *inputs, float *outputs) {
                         NULL,
                         NULL);
 
-        err = clEnqueueReadBuffer(queue, bfm1, CL_TRUE, 0, sizeof(float) * 8 * 8 * 256, fm1, 0, NULL, NULL);
+        err = clEnqueueReadBuffer(queue, bfm1, CL_TRUE, 0, sizeof(float) * 4 * w_in * h_in * K, fm1, 0, NULL, NULL);
         CHECK_ERROR(err);
 
         batch_norm(fm1, bn1_beta, bn1_gamma, bn1_mean, bn1_var, 8 * 8, 256);
         relu(fm1, 8 * 8 * 256);
-        tconv(fm1, fm2, tconv2_w, tconv2_b, 8, 8, 256, 128);
+        //tconv(fm1, fm2, tconv2_w, tconv2_b, 8, 8, 256, 128);
+        w_in *= 2; h_in *= 2; C /= 2; K /= 2;
+        err = clEnqueueWriteBuffer(queue, bfm1, CL_FALSE, 0, sizeof(float) * w_in * h_in * C, fm1, 0, NULL, NULL);
+        CHECK_ERROR(err);
+        err = clEnqueueWriteBuffer(queue, btconv2_w, CL_FALSE, 0, sizeof(float) * 5 * 5 * C * K, tconv2_w, 0, NULL, NULL);
+        CHECK_ERROR(err);
+        err = clEnqueueWriteBuffer(queue, btconv2_b, CL_TRUE, 0, sizeof(float) * K, tconv2_b, 0, NULL, NULL);
+        CHECK_ERROR(err);
+
+        err = clSetKernelArg(kernel, 0, sizeof(cl_mem), &bfm1);
+        CHECK_ERROR(err);
+        err = clSetKernelArg(kernel, 1, sizeof(cl_mem), &bfm2);
+        CHECK_ERROR(err);
+        err = clSetKernelArg(kernel, 2, sizeof(cl_mem), &btconv2_w);
+        CHECK_ERROR(err);
+        err = clSetKernelArg(kernel, 3, sizeof(cl_mem), &btconv2_b);
+        CHECK_ERROR(err);
+        err = clSetKernelArg(kernel, 4, sizeof(cl_int), &h_in);   
+        CHECK_ERROR(err);
+        err = clSetKernelArg(kernel, 5, sizeof(cl_int), &w_in);
+        CHECK_ERROR(err);
+        err = clSetKernelArg(kernel, 6, sizeof(cl_int), &C);   
+        CHECK_ERROR(err);
+        err = clSetKernelArg(kernel, 7, sizeof(cl_int), &K);
+        CHECK_ERROR(err);
+
+        global_size[2] = K; global_size[1] = 2 * h_in; global_size[0] = 2 * w_in;
+        local_size[2] = 16; local_size[1] = 4; local_size[0] = 4;
+
+        clEnqueueNDRangeKernel(
+                        queue,
+                        kernel,
+                        3,
+                        NULL,
+                        global_size,
+                        local_size,
+                        0,
+                        NULL,
+                        NULL);
+
+        err = clEnqueueReadBuffer(queue, bfm2, CL_TRUE, 0, sizeof(float) * 4 * w_in * h_in * K, fm2, 0, NULL, NULL);
+        CHECK_ERROR(err);
         batch_norm(fm2, bn2_beta, bn2_gamma, bn2_mean, bn2_var, 16 * 16, 128);
         relu(fm2, 16 * 16 * 128);
-        tconv(fm2, fm3, tconv3_w, tconv3_b, 16, 16, 128, 64);
+        //tconv(fm2, fm3, tconv3_w, tconv3_b, 16, 16, 128, 64);
+        w_in *= 2; h_in *= 2; C /= 2; K /= 2;
+        err = clEnqueueWriteBuffer(queue, bfm2, CL_FALSE, 0, sizeof(float) * w_in * h_in * C, fm2, 0, NULL, NULL);
+        CHECK_ERROR(err);
+        err = clEnqueueWriteBuffer(queue, btconv3_w, CL_FALSE, 0, sizeof(float) * 5 * 5 * C * K, tconv3_w, 0, NULL, NULL);
+        CHECK_ERROR(err);
+        err = clEnqueueWriteBuffer(queue, btconv3_b, CL_TRUE, 0, sizeof(float) * K, tconv3_b, 0, NULL, NULL);
+        CHECK_ERROR(err);
+
+        err = clSetKernelArg(kernel, 0, sizeof(cl_mem), &bfm2);
+        CHECK_ERROR(err);
+        err = clSetKernelArg(kernel, 1, sizeof(cl_mem), &bfm3);
+        CHECK_ERROR(err);
+        err = clSetKernelArg(kernel, 2, sizeof(cl_mem), &btconv3_w);
+        CHECK_ERROR(err);
+        err = clSetKernelArg(kernel, 3, sizeof(cl_mem), &btconv3_b);
+        CHECK_ERROR(err);
+        err = clSetKernelArg(kernel, 4, sizeof(cl_int), &h_in);   
+        CHECK_ERROR(err);
+        err = clSetKernelArg(kernel, 5, sizeof(cl_int), &w_in);
+        CHECK_ERROR(err);
+        err = clSetKernelArg(kernel, 6, sizeof(cl_int), &C);   
+        CHECK_ERROR(err);
+        err = clSetKernelArg(kernel, 7, sizeof(cl_int), &K);
+        CHECK_ERROR(err);
+
+        global_size[2] = K; global_size[1] = 2 * h_in; global_size[0] = 2 * w_in;
+        local_size[2] = 16; local_size[1] = 4; local_size[0] = 4;
+
+        clEnqueueNDRangeKernel(
+                        queue,
+                        kernel,
+                        3,
+                        NULL,
+                        global_size,
+                        local_size,
+                        0,
+                        NULL,
+                        NULL);
+
+        err = clEnqueueReadBuffer(queue, bfm3, CL_TRUE, 0, sizeof(float) * 4 * w_in * h_in * K, fm2, 0, NULL, NULL);
+        CHECK_ERROR(err);
         batch_norm(fm3, bn3_beta, bn3_gamma, bn3_mean, bn3_var, 32 * 32, 64);
         relu(fm3, 32 * 32 * 64);
         tconv(fm3, output, tconv4_w, tconv4_b, 32, 32, 64, 3);
