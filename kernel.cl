@@ -42,11 +42,10 @@ __kernel void tconv_k(__global float* in, __global float* out, __global float* w
 __kernel void batch_norm_k(__global float* inout, __global float* beta, __global float* gamma, __global float* mean, __global float* var, int HW, int C)
 {
     int i = get_global_id(0);
-    int c = i % C;
+    int c = get_global_id(1);
     float scaled_gamma;
-
     scaled_gamma = gamma[c] / sqrt(var[c] + 1e-5);
-    inout[i] = scaled_gamma * inout[i] + (beta[c] - scaled_gamma * mean[c]);
+    inout[i * C + c] = scaled_gamma * inout[i * C + c] + (beta[c] - scaled_gamma * mean[c]);
 }
 
 __kernel void relu_k(__global float* inout, int HWC)

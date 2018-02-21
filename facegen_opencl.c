@@ -16,6 +16,7 @@ cl_context context;
 cl_command_queue queue;
 cl_program program;
 cl_kernel kernel;
+cl_kernel batch_kernel;
 cl_int err;
 
 // feature maps buffer
@@ -295,8 +296,7 @@ void facegen_init() {
 }
 
 void facegen(int num_to_gen, float *network, float *inputs, float *outputs) {
-    int w_in, h_in, C, K;
-
+    int w_in, h_in, C, K, HW;
     // split network into each layer's parameter
     float *proj_w = network; network += 100 * 8192;
     float *proj_b = network; network += 8192;
@@ -333,7 +333,7 @@ void facegen(int num_to_gen, float *network, float *inputs, float *outputs) {
 
     // Work_items and work_group
     size_t global_size[3], local_size[3];
-
+    size_t bat_global_size[2], bat_local_size[2];
     //Write each stage buffers
     //feature map 0
     w_in = 4; h_in = 4; C = 512; K = 256;
@@ -358,7 +358,7 @@ void facegen(int num_to_gen, float *network, float *inputs, float *outputs) {
     CHECK_ERROR(err);
     err = clEnqueueWriteBuffer(queue, b_beta1, CL_TRUE, 0, sizeof(float) * C, bn1_beta, 0, NULL, NULL);
     CHECK_ERROR(err);
-err = clEnqueueWriteBuffer(queue, b_gamma1, CL_TRUE, 0, sizeof(float) * C, bn1_gamma, 0, NULL, NULL);
+    err = clEnqueueWriteBuffer(queue, b_gamma1, CL_TRUE, 0, sizeof(float) * C, bn1_gamma, 0, NULL, NULL);
     CHECK_ERROR(err);
     err = clEnqueueWriteBuffer(queue, b_mean1, CL_TRUE, 0, sizeof(float) * C, bn1_mean, 0, NULL, NULL);
     CHECK_ERROR(err);
@@ -373,7 +373,7 @@ err = clEnqueueWriteBuffer(queue, b_gamma1, CL_TRUE, 0, sizeof(float) * C, bn1_g
     CHECK_ERROR(err);
     err = clEnqueueWriteBuffer(queue, b_beta2, CL_TRUE, 0, sizeof(float) * C, bn2_beta, 0, NULL, NULL);
     CHECK_ERROR(err);
-err = clEnqueueWriteBuffer(queue, b_gamma2, CL_TRUE, 0, sizeof(float) * C, bn2_gamma, 0, NULL, NULL);
+    err = clEnqueueWriteBuffer(queue, b_gamma2, CL_TRUE, 0, sizeof(float) * C, bn2_gamma, 0, NULL, NULL);
     CHECK_ERROR(err);
     err = clEnqueueWriteBuffer(queue, b_mean2, CL_TRUE, 0, sizeof(float) * C, bn2_mean, 0, NULL, NULL);
     CHECK_ERROR(err);
@@ -388,16 +388,18 @@ err = clEnqueueWriteBuffer(queue, b_gamma2, CL_TRUE, 0, sizeof(float) * C, bn2_g
     CHECK_ERROR(err);
     err = clEnqueueWriteBuffer(queue, b_beta3, CL_TRUE, 0, sizeof(float) * C, bn3_beta, 0, NULL, NULL);
     CHECK_ERROR(err);
-err = clEnqueueWriteBuffer(queue, b_gamma3, CL_TRUE, 0, sizeof(float) * C, bn3_gamma, 0, NULL, NULL);
+    err = clEnqueueWriteBuffer(queue, b_gamma3, CL_TRUE, 0, sizeof(float) * C, bn3_gamma, 0, NULL, NULL);
     CHECK_ERROR(err);
-    err = clEnqueueWriteBuffer(queue, b_mean2, CL_TRUE, 0, sizeof(float) * C, bn3_mean, 0, NULL, NULL);
+    err = clEnqueueWriteBuffer(queue, b_mean3, CL_TRUE, 0, sizeof(float) * C, bn3_mean, 0, NULL, NULL);
     CHECK_ERROR(err);
-    err = clEnqueueWriteBuffer(queue, b_var2, CL_TRUE, 0, sizeof(float) * C, bn3_var, 0, NULL, NULL);
+    err = clEnqueueWriteBuffer(queue, b_var3, CL_TRUE, 0, sizeof(float) * C, bn3_var, 0, NULL, NULL);
     CHECK_ERROR(err);
 
 
     // create kernel tconv
     kernel = clCreateKernel(program, "tconv_k", &err);
+    CHECK_ERROR(err);
+    batch_kernel = clCreateKernel(program, "batch_norm_k", &err);
     CHECK_ERROR(err);
 
     //time result array
@@ -418,9 +420,44 @@ err = clEnqueueWriteBuffer(queue, b_gamma3, CL_TRUE, 0, sizeof(float) * C, bn3_g
         time_end = get_time();
         result_time[0] += time_end - time_start;
         // implicit layout change here; (8192,) -> (4, 4, 512)
-
         time_start = get_time();
-        batch_norm(fm0, bn0_beta, bn0_gamma, bn0_mean, bn0_var, 4 * 4, 512);
+        w_in = 4; h_in = 4; C = 512; K = 256; HW = w_in * h_in;
+        err = clEnqueueWriteBuffer(queue, bfm0, CL_FALSE, 0, sizeof(float) * w_in * h_in * C, fm0, 0, NULL, NULL);
+        CHECK_ERROR(err);
+       
+        err = clSetKernelArg(batch_kernel, 0, sizeof(cl_mem), &bfm0);
+        CHECK_ERROR(err);
+        err = clSetKernelArg(batch_kernel, 1, sizeof(cl_mem), &b_beta0);
+        CHECK_ERROR(err);
+        err = clSetKernelArg(batch_kernel, 2, sizeof(cl_mem), &b_gamma0);
+        CHECK_ERROR(err);
+        err = clSetKernelArg(batch_kernel, 3, sizeof(cl_mem), &b_mean0);
+        CHECK_ERROR(err);
+        err = clSetKernelArg(batch_kernel, 4, sizeof(cl_mem), &b_var0);
+        CHECK_ERROR(err);
+        err = clSetKernelArg(batch_kernel, 5, sizeof(int), &HW);
+        CHECK_ERROR(err);
+        err = clSetKernelArg(batch_kernel, 6, sizeof(int), &C);
+        CHECK_ERROR(err);
+
+        bat_global_size[1] = C; bat_global_size[0] = HW;
+        bat_local_size[1] = 16; bat_local_size[0] = 16;
+
+        clEnqueueNDRangeKernel(
+                queue,
+                batch_kernel,
+                2,
+                NULL,
+                bat_global_size,
+                bat_local_size,
+                0,
+                NULL,
+                NULL);
+
+        err = clEnqueueReadBuffer(queue, bfm0, CL_TRUE, 0, sizeof(float) *  w_in * h_in * K, fm0, 0, NULL, NULL);
+        CHECK_ERROR(err);
+
+//        batch_norm(fm0, bn0_beta, bn0_gamma, bn0_mean, bn0_var, 4 * 4, 512);
         time_end  = get_time();
         result_time[1] += time_end - time_start;
 
@@ -432,7 +469,7 @@ err = clEnqueueWriteBuffer(queue, b_gamma3, CL_TRUE, 0, sizeof(float) * C, bn3_g
 
         //feature map 0
         time_start = get_time();
-        w_in = 4; h_in = 4; C = 512; K = 256;
+       w_in = 4; h_in = 4; C = 512; K = 256;
         err = clEnqueueWriteBuffer(queue, bfm0, CL_FALSE, 0, sizeof(float) * w_in * h_in * C, fm0, 0, NULL, NULL);
         CHECK_ERROR(err);
         err = clSetKernelArg(kernel, 0, sizeof(cl_mem), &bfm0);
