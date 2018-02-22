@@ -347,7 +347,7 @@ void facegen(int num_to_gen, float *network, float *inputs, float *outputs) {
     size_t global_size[3], local_size[3];
     size_t bat_global_size[2], bat_local_size[2];
     size_t relu_global_size, relu_local_size;
-    size_t proj_global_size, proj_local_size;
+    size_t proj_global_size[2], proj_local_size[2];
     //Write each stage buffers
     //proj layer 
     err = clEnqueueWriteBuffer(queue, bproj_w, CL_FALSE, 0, sizeof(float) * 100 * 8192, proj_w, 0, NULL, NULL);
@@ -457,16 +457,16 @@ void facegen(int num_to_gen, float *network, float *inputs, float *outputs) {
         err = clSetKernelArg(proj_kernel, 5, sizeof(cl_int), &K);
         CHECK_ERROR(err);
 
-        proj_global_size = 8192;
-        proj_local_size = 256;
+        proj_global_size[1] = 8192; proj_global_size[0] = 128;
+        proj_local_size[1] = 2; proj_local_size[0] =128;
 
         clEnqueueNDRangeKernel(
                 queue,
                 proj_kernel,
-                1,
+                2,
                 NULL,
-                &proj_global_size,
-                &proj_local_size,
+                proj_global_size,
+                proj_local_size,
                 0,
                 NULL,
                 NULL);

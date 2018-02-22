@@ -64,10 +64,30 @@ __kernel void tanh_layer_k(__global float* inout, int HWC)
 
 __kernel void proj_k(__global float* in, __global float* out, __global float* weight, __global float* bias, int C, int K)
 {
+    int i = get_global_id(1);
+    int l_i = get_local_id(1);
+    __local float sum[256];
+    int c = get_local_id(0);
+    
+    sum[l_i * 128 + c] = (c < C) ? in[c] * weight[c * K + i] : 0;
+    barrier(CLK_LOCAL_MEM_FENCE);
+
+    for(int p = get_local_size(0) / 2; p >= 1; p = p >> 1)
+    {
+        if(c < p)
+            sum[l_i * 128 + c] += sum[l_i * 128 + c + p];
+        barrier(CLK_LOCAL_MEM_FENCE);
+    }
+
+    if(c == 0)
+    {
+        out[i] = sum[l_i * 128] + bias[i];
+    }
+/*
     int i = get_global_id(0);
     float sum = 0.0f;
     int c;
-    
+
     for(c = 0; c < C; ++c)
     {
         sum += in[c] * weight[c * K + i];
@@ -76,5 +96,6 @@ __kernel void proj_k(__global float* in, __global float* out, __global float* we
     sum += bias[i];
 
     out[i] = sum;
+*/
 }
 
