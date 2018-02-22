@@ -616,7 +616,6 @@ void facegen(int num_to_gen, float *network, float *inputs, float *outputs) {
         result_time[4] += time_end - time_start;
 
         time_start = get_time();
-        
         err = clSetKernelArg(relu_kernel, 0, sizeof(cl_mem), &bfm1);
         CHECK_ERROR(err);
         t = HW * C;
@@ -894,12 +893,8 @@ void facegen(int num_to_gen, float *network, float *inputs, float *outputs) {
         result_time[13] += time_end - time_start;
     }
 
-    for(loop = 0; loop < 5; loop++){
+    for(loop = 0; loop < 14; loop++){
         printf("\nnumber%d : %0.9f \n",loop, result_time[loop]);
-        printf("\nnumber%d : %0.9f \n",loop, result_time[loop+1]);
-        if(loop != 4){
-            printf("\nnumber%d : %0.9f \n", loop, result_time[loop+2]);
-        }
     }
     // free resources
     free(fm0);
