@@ -84,6 +84,7 @@ char *get_source_code(const char *file_name, size_t *len) {
  * weight : (C, K)
  * bias : (K)
  */
+/*
 static void proj(float *in, float *out, float *weight, float *bias, int C, int K) {
     for (int k = 0; k < K; ++k) {
         float s = 0;
@@ -94,7 +95,7 @@ static void proj(float *in, float *out, float *weight, float *bias, int C, int K
         out[k] = s;
     }
 }
-
+*/
 /*
  * batch normalization (in-place)
  * inout : (H, W, C)
@@ -103,6 +104,7 @@ static void proj(float *in, float *out, float *weight, float *bias, int C, int K
  * mean : (C)
  * var : (C)
  */
+/*
 static void batch_norm(float *inout, float *beta, float *gamma, float *mean, float *var, int HW, int C) {
     for (int hw = 0; hw < HW; ++hw) {
         for (int c = 0; c < C; ++c) {
@@ -111,17 +113,18 @@ static void batch_norm(float *inout, float *beta, float *gamma, float *mean, flo
         }
     }
 }
-
+*/
 /*
  * ReLU (in-place)
  * inout : (H, W, C)
  */
+/*
 static void relu(float *inout, int HWC) {
     for (int hwc = 0; hwc < HWC; ++hwc) {
         inout[hwc] = fmaxf(inout[hwc], 0);
     }
 }
-
+*/
 /*
  * transposed convolution
  * in : (H_IN, W_IN, C)
@@ -571,27 +574,77 @@ void facegen(int num_to_gen, float *network, float *inputs, float *outputs) {
                 NULL,
                 NULL);
 
-        err = clEnqueueReadBuffer(queue, bfm1, CL_TRUE, 0, sizeof(float) * 4 * w_in * h_in * K, fm1, 0, NULL, NULL);
-        CHECK_ERROR(err);
+//        err = clEnqueueReadBuffer(queue, bfm1, CL_TRUE, 0, sizeof(float) * 4 * w_in * h_in * K, fm1, 0, NULL, NULL);
+//        CHECK_ERROR(err);
+
         time_end = get_time();
         result_time[3] += time_end - time_start;
 
         time_start = get_time();
-        batch_norm(fm1, bn1_beta, bn1_gamma, bn1_mean, bn1_var, 8 * 8, 256);
+        //batch_norm(fm1, bn1_beta, bn1_gamma, bn1_mean, bn1_var, 8 * 8, 256);
+        w_in = 8; h_in = 8; C = 256; HW = w_in * h_in; 
+        err = clSetKernelArg(batch_kernel, 0, sizeof(cl_mem), &bfm1);
+        CHECK_ERROR(err);
+        err = clSetKernelArg(batch_kernel, 1, sizeof(cl_mem), &b_beta1);
+        CHECK_ERROR(err);
+        err = clSetKernelArg(batch_kernel, 2, sizeof(cl_mem), &b_gamma1);
+        CHECK_ERROR(err);
+        err = clSetKernelArg(batch_kernel, 3, sizeof(cl_mem), &b_mean1);
+        CHECK_ERROR(err);
+        err = clSetKernelArg(batch_kernel, 4, sizeof(cl_mem), &b_var1);
+        CHECK_ERROR(err);
+        err = clSetKernelArg(batch_kernel, 5, sizeof(cl_int), &HW);
+        CHECK_ERROR(err);
+        err = clSetKernelArg(batch_kernel, 6, sizeof(cl_int), &C);
+        CHECK_ERROR(err);
+
+        bat_global_size[1] = C; bat_global_size[0] = HW;
+        bat_local_size[1] = 16; bat_local_size[0] = 16;
+
+        clEnqueueNDRangeKernel(
+                queue,
+                batch_kernel,
+                2,
+                NULL,
+                bat_global_size,
+                bat_local_size,
+                0,
+                NULL,
+                NULL);
+
         time_end = get_time();
         result_time[4] += time_end - time_start;
 
         time_start = get_time();
-        relu(fm1, 8 * 8 * 256);
+        
+        err = clSetKernelArg(relu_kernel, 0, sizeof(cl_mem), &bfm1);
+        CHECK_ERROR(err);
+        t = HW * C;
+        err = clSetKernelArg(relu_kernel, 1, sizeof(int), &t);
+        CHECK_ERROR(err);
+        relu_global_size = t;
+        relu_local_size = HW;
+
+        clEnqueueNDRangeKernel(
+                queue,
+                relu_kernel,
+                1,
+                NULL,
+                &relu_global_size,
+                &relu_local_size,
+                0,
+                NULL,
+                NULL);
+        //relu(fm1, 8 * 8 * 256);
         //tconv(fm1, fm2, tconv2_w, tconv2_b, 8, 8, 256, 128);
         time_end = get_time();
         result_time[5] += time_end - time_start;
 
         //feature map 1
         time_start = get_time();
-        w_in *= 2; h_in *= 2; C /= 2; K /= 2;
-        err = clEnqueueWriteBuffer(queue, bfm1, CL_FALSE, 0, sizeof(float) * w_in * h_in * C, fm1, 0, NULL, NULL);
-        CHECK_ERROR(err);
+        w_in = 8; h_in = 8; C = 256; K = 128;
+        //err = clEnqueueWriteBuffer(queue, bfm1, CL_FALSE, 0, sizeof(float) * w_in * h_in * C, fm1, 0, NULL, NULL);
+        //CHECK_ERROR(err);
 
         err = clSetKernelArg(kernel, 0, sizeof(cl_mem), &bfm1);
         CHECK_ERROR(err);
@@ -624,18 +677,66 @@ void facegen(int num_to_gen, float *network, float *inputs, float *outputs) {
                 NULL,
                 NULL);
 
-        err = clEnqueueReadBuffer(queue, bfm2, CL_TRUE, 0, sizeof(float) * 4 * w_in * h_in * K, fm2, 0, NULL, NULL);
-        CHECK_ERROR(err);
+//        err = clEnqueueReadBuffer(queue, bfm2, CL_TRUE, 0, sizeof(float) * 4 * w_in * h_in * K, fm2, 0, NULL, NULL);
+//        CHECK_ERROR(err);
         time_end = get_time();
         result_time[6] += time_end - time_start;
 
         time_start = get_time();
-        batch_norm(fm2, bn2_beta, bn2_gamma, bn2_mean, bn2_var, 16 * 16, 128);
+        w_in = 16; h_in = 16; C = 128; HW = w_in * h_in; 
+        err = clSetKernelArg(batch_kernel, 0, sizeof(cl_mem), &bfm2);
+        CHECK_ERROR(err);
+        err = clSetKernelArg(batch_kernel, 1, sizeof(cl_mem), &b_beta2);
+        CHECK_ERROR(err);
+        err = clSetKernelArg(batch_kernel, 2, sizeof(cl_mem), &b_gamma2);
+        CHECK_ERROR(err);
+        err = clSetKernelArg(batch_kernel, 3, sizeof(cl_mem), &b_mean2);
+        CHECK_ERROR(err);
+        err = clSetKernelArg(batch_kernel, 4, sizeof(cl_mem), &b_var2);
+        CHECK_ERROR(err);
+        err = clSetKernelArg(batch_kernel, 5, sizeof(cl_int), &HW);
+        CHECK_ERROR(err);
+        err = clSetKernelArg(batch_kernel, 6, sizeof(cl_int), &C);
+        CHECK_ERROR(err);
+
+        bat_global_size[1] = C; bat_global_size[0] = HW;
+        bat_local_size[1] = 16; bat_local_size[0] = 16;
+
+        clEnqueueNDRangeKernel(
+                queue,
+                batch_kernel,
+                2,
+                NULL,
+                bat_global_size,
+                bat_local_size,
+                0,
+                NULL,
+                NULL);
+        //batch_norm(fm2, bn2_beta, bn2_gamma, bn2_mean, bn2_var, 16 * 16, 128);
         time_end = get_time();
         result_time[7] += time_end - time_start;
 
         time_start = get_time();
-        relu(fm2, 16 * 16 * 128);
+
+        err = clSetKernelArg(relu_kernel, 0, sizeof(cl_mem), &bfm2);
+        CHECK_ERROR(err);
+        t = HW * C;
+        err = clSetKernelArg(relu_kernel, 1, sizeof(int), &t);
+        CHECK_ERROR(err);
+        relu_global_size = t;
+        relu_local_size = HW;
+
+        clEnqueueNDRangeKernel(
+                queue,
+                relu_kernel,
+                1,
+                NULL,
+                &relu_global_size,
+                &relu_local_size,
+                0,
+                NULL,
+                NULL);
+        //relu(fm2, 16 * 16 * 128);
         time_end = get_time();
         result_time[8] += time_end - time_start;
         //tconv(fm2, fm3, tconv3_w, tconv3_b, 16, 16, 128, 64);
@@ -643,9 +744,9 @@ void facegen(int num_to_gen, float *network, float *inputs, float *outputs) {
 
         //feature map 2
         time_start = get_time();
-        w_in *= 2; h_in *= 2; C /= 2; K /= 2;
-        err = clEnqueueWriteBuffer(queue, bfm2, CL_FALSE, 0, sizeof(float) * w_in * h_in * C, fm2, 0, NULL, NULL);
-        CHECK_ERROR(err);
+        w_in = 16; h_in = 16; C = 128; K = 64;
+//        err = clEnqueueWriteBuffer(queue, bfm2, CL_FALSE, 0, sizeof(float) * w_in * h_in * C, fm2, 0, NULL, NULL);
+//        CHECK_ERROR(err);
 
 
         err = clSetKernelArg(kernel, 0, sizeof(cl_mem), &bfm2);
@@ -679,18 +780,67 @@ void facegen(int num_to_gen, float *network, float *inputs, float *outputs) {
                 NULL,
                 NULL);
 
-        err = clEnqueueReadBuffer(queue, bfm3, CL_TRUE, 0, sizeof(float) * 4 * w_in * h_in * K, fm3, 0, NULL, NULL);
-        CHECK_ERROR(err);
+//        err = clEnqueueReadBuffer(queue, bfm3, CL_TRUE, 0, sizeof(float) * 4 * w_in * h_in * K, fm3, 0, NULL, NULL);
+//        CHECK_ERROR(err);
         time_end = get_time();
         result_time[9] += time_end - time_start;
 
         time_start = get_time();
-        batch_norm(fm3, bn3_beta, bn3_gamma, bn3_mean, bn3_var, 32 * 32, 64);
+
+        w_in = 32; h_in = 32; C = 64; HW = w_in * h_in; 
+        err = clSetKernelArg(batch_kernel, 0, sizeof(cl_mem), &bfm3);
+        CHECK_ERROR(err);
+        err = clSetKernelArg(batch_kernel, 1, sizeof(cl_mem), &b_beta3);
+        CHECK_ERROR(err);
+        err = clSetKernelArg(batch_kernel, 2, sizeof(cl_mem), &b_gamma3);
+        CHECK_ERROR(err);
+        err = clSetKernelArg(batch_kernel, 3, sizeof(cl_mem), &b_mean3);
+        CHECK_ERROR(err);
+        err = clSetKernelArg(batch_kernel, 4, sizeof(cl_mem), &b_var3);
+        CHECK_ERROR(err);
+        err = clSetKernelArg(batch_kernel, 5, sizeof(cl_int), &HW);
+        CHECK_ERROR(err);
+        err = clSetKernelArg(batch_kernel, 6, sizeof(cl_int), &C);
+        CHECK_ERROR(err);
+
+        bat_global_size[1] = C; bat_global_size[0] = HW;
+        bat_local_size[1] = 16; bat_local_size[0] = 16;
+
+        clEnqueueNDRangeKernel(
+                queue,
+                batch_kernel,
+                2,
+                NULL,
+                bat_global_size,
+                bat_local_size,
+                0,
+                NULL,
+                NULL);
+        //batch_norm(fm3, bn3_beta, bn3_gamma, bn3_mean, bn3_var, 32 * 32, 64);
         time_end = get_time();
         result_time[10] += time_end - time_start;
 
         time_start = get_time();
-        relu(fm3, 32 * 32 * 64);
+
+        err = clSetKernelArg(relu_kernel, 0, sizeof(cl_mem), &bfm3);
+        CHECK_ERROR(err);
+        t = HW * C;
+        err = clSetKernelArg(relu_kernel, 1, sizeof(int), &t);
+        CHECK_ERROR(err);
+        relu_global_size = t;
+        relu_local_size = HW;
+
+        clEnqueueNDRangeKernel(
+                queue,
+                relu_kernel,
+                1,
+                NULL,
+                &relu_global_size,
+                &relu_local_size,
+                0,
+                NULL,
+                NULL);
+        //relu(fm3, 32 * 32 * 64);
 
         time_end = get_time();
         result_time[11] += time_end - time_start;
@@ -698,9 +848,9 @@ void facegen(int num_to_gen, float *network, float *inputs, float *outputs) {
 
         //feature map 3
         time_start = get_time();
-        w_in *= 2; h_in *= 2; C /= 2; K = 3;
-        err = clEnqueueWriteBuffer(queue, bfm3, CL_FALSE, 0, sizeof(float) * w_in * h_in * C, fm3, 0, NULL, NULL);
-        CHECK_ERROR(err);
+        w_in = 32; h_in = 32; C = 64; K = 3;
+//        err = clEnqueueWriteBuffer(queue, bfm3, CL_FALSE, 0, sizeof(float) * w_in * h_in * C, fm3, 0, NULL, NULL);
+//        CHECK_ERROR(err);
 
         err = clSetKernelArg(kernel, 0, sizeof(cl_mem), &bfm3);
         CHECK_ERROR(err);
