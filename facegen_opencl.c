@@ -15,8 +15,11 @@ cl_device_id device;
 cl_context context;
 cl_command_queue queue;
 cl_program program;
-cl_kernel kernel, batch_kernel, relu_kernel;
+cl_kernel kernel, batch_kernel, relu_kernel, proj_kernel;
 cl_int err;
+
+// proj layer buffer
+cl_mem binput, bproj_w, bproj_b;
 
 // feature maps buffer
 cl_mem bfm0, bfm1, bfm2, bfm3, boutput;
@@ -220,6 +223,14 @@ void facegen_init() {
         exit(0);
     }
 
+    //create proj layer buffers
+    binput = clCreateBuffer(context, CL_MEM_READ_WRITE, sizeof(float) * 100, NULL, &err);
+    CHECK_ERROR(err);
+    bproj_w = clCreateBuffer(context, CL_MEM_READ_WRITE, sizeof(float) * 100 * 8192, NULL, &err);
+    CHECK_ERROR(err);
+    bproj_b = clCreateBuffer(context, CL_MEM_READ_WRITE, sizeof(float) * 8192, NULL, &err);
+    CHECK_ERROR(err);
+   
     //create feature maps buffer
     bfm0 = clCreateBuffer(context, CL_MEM_READ_WRITE, sizeof(float) * 4 * 4 * 512, NULL, &err);
     CHECK_ERROR(err);
@@ -333,7 +344,14 @@ void facegen(int num_to_gen, float *network, float *inputs, float *outputs) {
     size_t global_size[3], local_size[3];
     size_t bat_global_size[2], bat_local_size[2];
     size_t relu_global_size, relu_local_size;
+    size_t proj_global_size, proj_local_size;
     //Write each stage buffers
+    //proj layer 
+    err = clEnqueueWriteBuffer(queue, bproj_w, CL_FALSE, 0, sizeof(float) * 100 * 8192, proj_w, 0, NULL, NULL);
+    CHECK_ERROR(err);
+    err = clEnqueueWriteBuffer(queue, bproj_b, CL_FALSE, 0, sizeof(float) * 8192, proj_b, 0, NULL, NULL);
+    CHECK_ERROR(err);
+
     //feature map 0
     w_in = 4; h_in = 4; C = 512; K = 256;
     err = clEnqueueWriteBuffer(queue, btconv1_w, CL_FALSE, 0, sizeof(float) * 5 * 5 * C * K, tconv1_w, 0, NULL, NULL);
@@ -402,6 +420,8 @@ void facegen(int num_to_gen, float *network, float *inputs, float *outputs) {
     CHECK_ERROR(err);
     relu_kernel = clCreateKernel(program, "relu_k", &err);
     CHECK_ERROR(err);
+    proj_kernel = clCreateKernel(program, "proj_k", &err);
+    CHECK_ERROR(err);
 
     //time result array
     double result_time[14], time_start, time_end;
@@ -417,14 +437,43 @@ void facegen(int num_to_gen, float *network, float *inputs, float *outputs) {
 
         //Input image
         time_start = get_time();
-        proj(input, fm0, proj_w, proj_b, 100, 8192);
+        //proj(input, fm0, proj_w, proj_b, 100, 8192);
+        C = 100; K = 8192;
+        err = clEnqueueWriteBuffer(queue, binput, CL_FALSE, 0, sizeof(float) * 100, input, 0, NULL, NULL);
+        CHECK_ERROR(err);
+        err = clSetKernelArg(proj_kernel, 0, sizeof(cl_mem), &binput);
+        CHECK_ERROR(err);
+        err = clSetKernelArg(proj_kernel, 1, sizeof(cl_mem), &bfm0);
+        CHECK_ERROR(err);
+        err = clSetKernelArg(proj_kernel, 2, sizeof(cl_mem), &bproj_w);
+        CHECK_ERROR(err);
+        err = clSetKernelArg(proj_kernel, 3, sizeof(cl_mem), &bproj_b);
+        CHECK_ERROR(err);
+        err = clSetKernelArg(proj_kernel, 4, sizeof(cl_int), &C);
+        CHECK_ERROR(err);
+        err = clSetKernelArg(proj_kernel, 5, sizeof(cl_int), &K);
+        CHECK_ERROR(err);
+
+        proj_global_size = 8192;
+        proj_local_size = 256;
+
+        clEnqueueNDRangeKernel(
+                queue,
+                proj_kernel,
+                1,
+                NULL,
+                &proj_global_size,
+                &proj_local_size,
+                0,
+                NULL,
+                NULL);
         time_end = get_time();
         result_time[0] += time_end - time_start;
         // implicit layout change here; (8192,) -> (4, 4, 512)
         time_start = get_time();
         w_in = 4; h_in = 4; C = 512; K = 256; HW = w_in * h_in;
-        err = clEnqueueWriteBuffer(queue, bfm0, CL_FALSE, 0, sizeof(float) * w_in * h_in * C, fm0, 0, NULL, NULL);
-        CHECK_ERROR(err);
+        //err = clEnqueueWriteBuffer(queue, bfm0, CL_FALSE, 0, sizeof(float) * w_in * h_in * C, fm0, 0, NULL, NULL);
+        //CHECK_ERROR(err);
         err = clSetKernelArg(batch_kernel, 0, sizeof(cl_mem), &bfm0);
         CHECK_ERROR(err);
         err = clSetKernelArg(batch_kernel, 1, sizeof(cl_mem), &b_beta0);
