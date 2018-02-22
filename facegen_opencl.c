@@ -439,7 +439,7 @@ void facegen(int num_to_gen, float *network, float *inputs, float *outputs) {
         float *output = outputs + n * 64 * 64 * 3;
 
         //Input image
-        time_start = get_time();
+        //time_start = get_time();
         //proj(input, fm0, proj_w, proj_b, 100, 8192);
         C = 100; K = 8192;
         err = clEnqueueWriteBuffer(queue, binput, CL_FALSE, 0, sizeof(float) * 100, input, 0, NULL, NULL);
@@ -461,19 +461,19 @@ void facegen(int num_to_gen, float *network, float *inputs, float *outputs) {
         proj_local_size[1] = 2; proj_local_size[0] =128;
 
         clEnqueueNDRangeKernel(
-                queue,
-                proj_kernel,
-                2,
-                NULL,
-                proj_global_size,
-                proj_local_size,
-                0,
-                NULL,
-                NULL);
-        time_end = get_time();
-        result_time[0] += time_end - time_start;
+            queue,
+            proj_kernel,
+            2,
+            NULL,
+            proj_global_size,
+            proj_local_size,
+            0,
+            NULL,
+            NULL);
+        //time_end = get_time();
+        //result_time[0] += time_end - time_start;
         // implicit layout change here; (8192,) -> (4, 4, 512)
-        time_start = get_time();
+        //time_start = get_time();
         w_in = 4; h_in = 4; C = 512; K = 256; HW = w_in * h_in;
         //err = clEnqueueWriteBuffer(queue, bfm0, CL_FALSE, 0, sizeof(float) * w_in * h_in * C, fm0, 0, NULL, NULL);
         //CHECK_ERROR(err);
@@ -510,10 +510,10 @@ void facegen(int num_to_gen, float *network, float *inputs, float *outputs) {
  //       CHECK_ERROR(err);
 
 //        batch_norm(fm0, bn0_beta, bn0_gamma, bn0_mean, bn0_var, 4 * 4, 512);
-        time_end  = get_time();
-        result_time[1] += time_end - time_start;
+        //time_end  = get_time();
+        //result_time[1] += time_end - time_start;
 
-        time_start = get_time();
+        //time_start = get_time();
         err = clSetKernelArg(relu_kernel, 0, sizeof(cl_mem), &bfm0);
         CHECK_ERROR(err);
         int t = HW * C;
@@ -535,12 +535,12 @@ void facegen(int num_to_gen, float *network, float *inputs, float *outputs) {
 
 //        relu(fm0, 4 * 4 * 512);
         //tconv(fm0, fm1, tconv1_w, tconv1_b, 4, 4, 512, 256);
-        time_end = get_time();
-        result_time[2] += time_end - time_start;
+        //time_end = get_time();
+        //result_time[2] += time_end - time_start;
 
         //feature map 0
-        time_start = get_time();
-       w_in = 4; h_in = 4; C = 512; K = 256;
+        //time_start = get_time();
+        w_in = 4; h_in = 4; C = 512; K = 256;
 //        err = clEnqueueWriteBuffer(queue, bfm0, CL_FALSE, 0, sizeof(float) * w_in * h_in * C, fm0, 0, NULL, NULL);
         CHECK_ERROR(err);
         err = clSetKernelArg(kernel, 0, sizeof(cl_mem), &bfm0);
@@ -577,10 +577,10 @@ void facegen(int num_to_gen, float *network, float *inputs, float *outputs) {
 //        err = clEnqueueReadBuffer(queue, bfm1, CL_TRUE, 0, sizeof(float) * 4 * w_in * h_in * K, fm1, 0, NULL, NULL);
 //        CHECK_ERROR(err);
 
-        time_end = get_time();
-        result_time[3] += time_end - time_start;
+        //time_end = get_time();
+        //result_time[3] += time_end - time_start;
 
-        time_start = get_time();
+        //time_start = get_time();
         //batch_norm(fm1, bn1_beta, bn1_gamma, bn1_mean, bn1_var, 8 * 8, 256);
         w_in = 8; h_in = 8; C = 256; HW = w_in * h_in; 
         err = clSetKernelArg(batch_kernel, 0, sizeof(cl_mem), &bfm1);
@@ -612,10 +612,10 @@ void facegen(int num_to_gen, float *network, float *inputs, float *outputs) {
                 NULL,
                 NULL);
 
-        time_end = get_time();
-        result_time[4] += time_end - time_start;
+        //time_end = get_time();
+        //result_time[4] += time_end - time_start;
 
-        time_start = get_time();
+        //time_start = get_time();
         err = clSetKernelArg(relu_kernel, 0, sizeof(cl_mem), &bfm1);
         CHECK_ERROR(err);
         t = HW * C;
@@ -636,11 +636,11 @@ void facegen(int num_to_gen, float *network, float *inputs, float *outputs) {
                 NULL);
         //relu(fm1, 8 * 8 * 256);
         //tconv(fm1, fm2, tconv2_w, tconv2_b, 8, 8, 256, 128);
-        time_end = get_time();
-        result_time[5] += time_end - time_start;
+        //time_end = get_time();
+        //result_time[5] += time_end - time_start;
 
         //feature map 1
-        time_start = get_time();
+        //time_start = get_time();
         w_in = 8; h_in = 8; C = 256; K = 128;
         //err = clEnqueueWriteBuffer(queue, bfm1, CL_FALSE, 0, sizeof(float) * w_in * h_in * C, fm1, 0, NULL, NULL);
         //CHECK_ERROR(err);
@@ -678,10 +678,10 @@ void facegen(int num_to_gen, float *network, float *inputs, float *outputs) {
 
 //        err = clEnqueueReadBuffer(queue, bfm2, CL_TRUE, 0, sizeof(float) * 4 * w_in * h_in * K, fm2, 0, NULL, NULL);
 //        CHECK_ERROR(err);
-        time_end = get_time();
-        result_time[6] += time_end - time_start;
+        //time_end = get_time();
+        //result_time[6] += time_end - time_start;
 
-        time_start = get_time();
+        //time_start = get_time();
         w_in = 16; h_in = 16; C = 128; HW = w_in * h_in; 
         err = clSetKernelArg(batch_kernel, 0, sizeof(cl_mem), &bfm2);
         CHECK_ERROR(err);
@@ -712,10 +712,10 @@ void facegen(int num_to_gen, float *network, float *inputs, float *outputs) {
                 NULL,
                 NULL);
         //batch_norm(fm2, bn2_beta, bn2_gamma, bn2_mean, bn2_var, 16 * 16, 128);
-        time_end = get_time();
-        result_time[7] += time_end - time_start;
+        //time_end = get_time();
+        //result_time[7] += time_end - time_start;
 
-        time_start = get_time();
+        //time_start = get_time();
 
         err = clSetKernelArg(relu_kernel, 0, sizeof(cl_mem), &bfm2);
         CHECK_ERROR(err);
@@ -736,13 +736,13 @@ void facegen(int num_to_gen, float *network, float *inputs, float *outputs) {
                 NULL,
                 NULL);
         //relu(fm2, 16 * 16 * 128);
-        time_end = get_time();
-        result_time[8] += time_end - time_start;
+        //time_end = get_time();
+        //result_time[8] += time_end - time_start;
         //tconv(fm2, fm3, tconv3_w, tconv3_b, 16, 16, 128, 64);
 
 
         //feature map 2
-        time_start = get_time();
+        //time_start = get_time();
         w_in = 16; h_in = 16; C = 128; K = 64;
 //        err = clEnqueueWriteBuffer(queue, bfm2, CL_FALSE, 0, sizeof(float) * w_in * h_in * C, fm2, 0, NULL, NULL);
 //        CHECK_ERROR(err);
@@ -781,10 +781,10 @@ void facegen(int num_to_gen, float *network, float *inputs, float *outputs) {
 
 //        err = clEnqueueReadBuffer(queue, bfm3, CL_TRUE, 0, sizeof(float) * 4 * w_in * h_in * K, fm3, 0, NULL, NULL);
 //        CHECK_ERROR(err);
-        time_end = get_time();
-        result_time[9] += time_end - time_start;
+        ///time_end = get_time();
+        //result_time[9] += time_end - time_start;
 
-        time_start = get_time();
+        //time_start = get_time();
 
         w_in = 32; h_in = 32; C = 64; HW = w_in * h_in; 
         err = clSetKernelArg(batch_kernel, 0, sizeof(cl_mem), &bfm3);
@@ -816,10 +816,10 @@ void facegen(int num_to_gen, float *network, float *inputs, float *outputs) {
                 NULL,
                 NULL);
         //batch_norm(fm3, bn3_beta, bn3_gamma, bn3_mean, bn3_var, 32 * 32, 64);
-        time_end = get_time();
-        result_time[10] += time_end - time_start;
+        //time_end = get_time();
+        //result_time[10] += time_end - time_start;
 
-        time_start = get_time();
+        //time_start = get_time();
 
         err = clSetKernelArg(relu_kernel, 0, sizeof(cl_mem), &bfm3);
         CHECK_ERROR(err);
@@ -841,12 +841,12 @@ void facegen(int num_to_gen, float *network, float *inputs, float *outputs) {
                 NULL);
         //relu(fm3, 32 * 32 * 64);
 
-        time_end = get_time();
-        result_time[11] += time_end - time_start;
+        //time_end = get_time();
+        //result_time[11] += time_end - time_start;
         //tconv(fm3, output, tconv4_w, tconv4_b, 32, 32, 64, 3);
 
         //feature map 3
-        time_start = get_time();
+        //time_start = get_time();
         w_in = 32; h_in = 32; C = 64; K = 3;
 //        err = clEnqueueWriteBuffer(queue, bfm3, CL_FALSE, 0, sizeof(float) * w_in * h_in * C, fm3, 0, NULL, NULL);
 //        CHECK_ERROR(err);
@@ -869,7 +869,7 @@ void facegen(int num_to_gen, float *network, float *inputs, float *outputs) {
         CHECK_ERROR(err);
 
         global_size[2] = K; global_size[1] = 2 * h_in; global_size[0] = 2 * w_in;
-        local_size[2] = 1; local_size[1] = 16; local_size[0] = 16;
+        local_size[2] = 1; local_size[1] = 4; local_size[0] = 64;
 
         clEnqueueNDRangeKernel(
                 queue,
@@ -884,18 +884,18 @@ void facegen(int num_to_gen, float *network, float *inputs, float *outputs) {
 
         err = clEnqueueReadBuffer(queue, boutput, CL_TRUE, 0, sizeof(float) * 4 * w_in * h_in * K, output, 0, NULL, NULL);
         CHECK_ERROR(err);
-        time_end = get_time();
-        result_time[12] += time_end - time_start;
+        //time_end = get_time();
+        //result_time[12] += time_end - time_start;
 
-        time_start = get_time();
+        //time_start = get_time();
         tanh_layer(output, 64 * 64 * 3);
-        time_end = get_time();
-        result_time[13] += time_end - time_start;
+        //time_end = get_time();
+        //result_time[13] += time_end - time_start;
     }
-
+/*
     for(loop = 0; loop < 14; loop++){
         printf("\nnumber%d : %0.9f \n",loop, result_time[loop]);
-    }
+    }*/
     // free resources
     free(fm0);
     free(fm1);

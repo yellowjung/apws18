@@ -83,19 +83,5 @@ __kernel void proj_k(__global float* in, __global float* out, __global float* we
     {
         out[i] = sum[l_i * 128] + bias[i];
     }
-/*
-    int i = get_global_id(0);
-    float sum = 0.0f;
-    int c;
-
-    for(c = 0; c < C; ++c)
-    {
-        sum += in[c] * weight[c * K + i];
-    }
-
-    sum += bias[i];
-
-    out[i] = sum;
-*/
 }
 
